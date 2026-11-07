@@ -1,0 +1,7 @@
+pdfplumber
+pytesseract
+Pillow
+pandas
+openpyxl
+python-dotenv
+google-generativeai
