@@ -1,9 +1,10 @@
 """Módulo de procesamiento y comparación de presupuestos con Gemini."""
 
+from ast import Import
 import os
-from dotenv import load_dotenv
-from google import genai
-from pydantic import BaseModel, Field
+from dotenv import load_dotenv  # pyrefly: ignore[missing-import]
+from google import genai  # pyrefly: ignore[missing-import]
+from pydantic import BaseModel, Field  # pyrefly: ignore[missing-import]
 
 # Carga variables de entorno (.env)
 load_dotenv()
@@ -136,7 +137,8 @@ DOCUMENTOS A ANALIZAR:
     ultimo_error = None
     for modelo in modelos_a_probar:
         try:
-            print(f"Analizando y comparando presupuestos con Gemini ({modelo})...")
+            print(
+                f"Analizando y comparando presupuestos con Gemini ({modelo})...")
             interaction = client.interactions.create(
                 model=modelo,
                 input=prompt,
@@ -148,8 +150,9 @@ DOCUMENTOS A ANALIZAR:
                 timeout=90,
             )
             return ResultadoComparacion.model_validate_json(interaction.output_text)
-        except Exception as e:
+        except ImportError as e:
             print(f"  [Aviso] No se pudo completar con {modelo}: {e}")
             ultimo_error = e
 
-    raise RuntimeError(f"Error al procesar los presupuestos con Gemini: {ultimo_error}")
+    raise RuntimeError(
+        f"Error al procesar los presupuestos con Gemini: {ultimo_error}")
