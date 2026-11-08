@@ -76,7 +76,7 @@ def main():
     except KeyboardInterrupt:
         print("\n[Cancelado] Operación cancelada por el usuario.")
         sys.exit(0)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"\n[Error en ejecución] {e}")
         sys.exit(1)
 

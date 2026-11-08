@@ -32,7 +32,7 @@ def _obtener_idioma_ocr():
         if "spa" in langs:
             return "spa+eng"
         return "eng"
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         return "eng"
 
 
@@ -56,7 +56,7 @@ def extraer_texto_imagen(ruta_archivo: str) -> str:
         with Image.open(ruta_archivo) as imagen:
             texto = pytesseract.image_to_string(imagen, lang=idioma)
             return texto.strip()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(
             f"  [Aviso OCR] No se procesó la imagen {ruta_archivo}: {e}"
         )
@@ -85,7 +85,7 @@ def extraer_texto_pdf(ruta_archivo: str) -> str:
                         )
                         if texto_ocr.strip():
                             texto_total.append(texto_ocr.strip())
-                    except Exception as e_ocr:
+                    except Exception as e_ocr:  # pylint: disable=broad-exception-caught
                         print(
                             f"  [Aviso PDF OCR] Pág {num_pag} "
                             f"en {ruta_archivo}: {e_ocr}"
@@ -94,7 +94,7 @@ def extraer_texto_pdf(ruta_archivo: str) -> str:
                             texto_total.append(texto_pagina.strip())
 
         return "\n\n".join(texto_total).strip()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"  [Error PDF] No se pudo leer {ruta_archivo}: {e}")
         return ""
 
