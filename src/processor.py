@@ -1,142 +1,155 @@
-"""Clases que configuran los prompts para Gemini"""
-import json
+"""Módulo de procesamiento y comparación de presupuestos con Gemini."""
+
+import os
 from dotenv import load_dotenv
 from google import genai
 from pydantic import BaseModel, Field
 
-# Carga las variables del archivo .env (como GEMINI_API_KEY)
+# Carga variables de entorno (.env)
 load_dotenv()
 
 
 class OfertaProveedor(BaseModel):
-    """Clase donde se lee la oferta del proveedor"""
-    proveedor: str = Field(description="Nombre del proveedor")
+    """Detalle de la oferta de un proveedor para un producto específico."""
+    proveedor: str = Field(
+        description="Nombre comercial o razón social real del proveedor (ej: 'Electropar', '7 Saltos S.A.')"
+    )
     descripcion_cotizada: str = Field(
-        description="Producto tal cual figura en su presupuesto, o 'No cotizado'")
-    cantidad: float = Field(description="Cantidad cotizada (0 si no cotizó)")
+        description="Descripción textual del producto en la cotización, o 'No cotizado'"
+    )
+    cantidad: float = Field(
+        default=0.0,
+        description="Cantidad cotizada (0 si no cotizó)"
+    )
+    unidad_medida: str = Field(
+        default="un",
+        description="Unidad de medida (ej: 'm', 'un', 'kg', 'caja', 'global')"
+    )
     precio_unitario: float = Field(
-        description="Precio unitario en números (0 si no cotizó)")
+        default=0.0,
+        description="Precio unitario numérico (0 si no cotizó)"
+    )
     precio_total: float = Field(
-        description="Precio total para este item (cantidad * precio_unitario)")
+        default=0.0,
+        description="Precio total del ítem (cantidad * precio_unitario)"
+    )
+    moneda: str = Field(
+        default="GS",
+        description="Moneda cotizada detectada (ej: 'GS', 'USD', 'ARS')"
+    )
 
 
 class ItemComparado(BaseModel):
-    """Clase donde se lee el item especifico del producto"""
+    """Producto normalizado comparado entre todos los proveedores."""
     producto_base: str = Field(
-        description="Nombre genérico del producto que se está comparando")
+        description="Nombre genérico y representativo del producto comparado"
+    )
     ofertas: list[OfertaProveedor] = Field(
-        description="Lista con la oferta de cada proveedor con este producto")
+        description="Oferta de cada proveedor participante para este producto"
+    )
     diferencias_tecnicas: str = Field(
-        description="""
-        Explicacion breve si hay diferencias de especificaciones, marcas, cantidades, medidas, tamaños, potencia, 
-        y todo lo relacionado en la característica del producto""")
+        description="Diferencias relevantes de especificaciones, marcas, potencias, medidas o normas técnicas"
+    )
     mejor_opcion: str = Field(
-        description="Proveedor con la mejor ecuacion beneficio/costo para este item")
+        description="Proveedor recomendado con la mejor relación beneficio/costo para este ítem"
+    )
+    justificacion_mejor_opcion: str = Field(
+        default="",
+        description="Motivo conciso de la elección (ej: 'Menor precio unitario cumpliendo norma técnica')"
+    )
+
+
+class ResumenGeneral(BaseModel):
+    """Resumen y conclusiones ejecutivas de la comparación."""
+    proveedores_detectados: list[str] = Field(
+        description="Lista de nombres comerciales reales de los proveedores analizados"
+    )
+    moneda_principal: str = Field(
+        default="GS",
+        description="Moneda principal predominante en los presupuestos"
+    )
+    observaciones_generales: str = Field(
+        description="Observaciones globales sobre plazos de entrega, condiciones de pago, validez o garantías"
+    )
+    conclusion_recomendada: str = Field(
+        description="Dictamen final y recomendación de adjudicación (ej: adjudicar todo a un proveedor o compra mixta)"
+    )
 
 
 class ResultadoComparacion(BaseModel):
-    """Tiramos el resultado de la comparacion"""
+    """Resultado completo del análisis comparativo."""
+    resumen: ResumenGeneral = Field(
+        description="Resumen ejecutivo y condiciones comerciales"
+    )
     items: list[ItemComparado] = Field(
-        description="Lista de todos los productos comparados")
+        description="Lista de todos los productos y sus ofertas comparadas"
+    )
 
 
-def comparar_presupuestos(presupuestos: dict) -> ResultadoComparacion:
-    """Envia todos los presupuestos a Gemini y devuelve la comparacion estructurada"""
+def comparar_presupuestos(presupuestos: dict[str, str]) -> ResultadoComparacion:
+    """Envía los presupuestos a Gemini y devuelve la comparativa estructurada."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "No se encontró la variable GEMINI_API_KEY en el entorno o archivo .env. "
+            "Por favor, agrégala en tu archivo .env: GEMINI_API_KEY=tu_clave_aqui"
+        )
+
     client = genai.Client()
 
-    texto_proveedores = ""
-    lista_nombres = list(presupuestos.keys())
-
-    for proveedor, contenido in presupuestos.items():
-        texto_proveedores += f"\n--- PROVEEDOR: {proveedor} ---\n{contenido}\n"
+    texto_documentos = ""
+    for identificador, contenido in presupuestos.items():
+        texto_documentos += f"\n=== INICIO DOCUMENTO ({identificador}) ===\n{contenido}\n=== FIN DOCUMENTO ===\n"
 
     prompt = f"""
 Actúa como un analista senior de compras, licitaciones y evaluación técnica de presupuestos.
 
-OBJETIVO
-Analizar, normalizar y comparar los presupuestos de los siguientes proveedores:
+OBJETIVO:
+Analizar a profundidad, normalizar y comparar técnicamente los presupuestos contenidos en los documentos adjuntos.
 
-{', '.join(lista_nombres)}
+INSTRUCCIONES CLAVE:
+1. IDENTIFICACIÓN DE PROVEEDORES REALES:
+   - Analiza el encabezado, RUC/NIT, correos electrónicos, membretes o firmas de cada documento para identificar la RAZÓN SOCIAL o NOMBRE COMERCIAL REAL de la empresa que cotiza.
+   - NUNCA uses nombres de archivo genéricos (como "WhatsApp Image...") como nombre de proveedor si en el documento se lee el nombre real del comercio o vendedor.
 
-CRITERIOS DE ANÁLISIS
+2. NORMALIZACIÓN DE PRODUCTOS:
+   - Agrupa los ítems equivalentes bajo un "producto_base" neutro y técnico.
+   - Si un proveedor no cotizó un ítem, coloca descripcion_cotizada = "No cotizado", cantidad = 0, precio_unitario = 0, precio_total = 0.
+   - Registra claramente la unidad de medida y la moneda de cada cotización.
 
-1. NORMALIZACIÓN DE PRODUCTOS
-- Identifica productos iguales, similares o comparables.
-- Genera un nombre común denominado "producto_base".
-- El nombre debe ser técnico, neutro y representativo.
-- Elimina diferencias puramente comerciales o de redacción.
+3. EVALUACIÓN TÉCNICA Y MEJOR OPCIÓN:
+   - En "diferencias_tecnicas", destaca marcas, calidades, potencias, medidas o advertencias si las especificaciones difieren.
+   - Determina la "mejor_opcion" y proporciona una "justificacion_mejor_opcion" con criterio técnico-económico.
 
-2. AGRUPACIÓN Y ALERTA TÉCNICA
-- Si un proveedor cotiza una alternativa o sustituto con leve diferencia de capacidad, medida o cantidad para el mismo ítem pedido (ej: Proveedor A cotiza 1 Disyuntor de 32A y Proveedor B cotiza 2 Disyuntores de 16A, o distinta marca/potencia), AGRÚPALOS en la misma fila bajo el mismo "producto_base" para poder compararlos lado a lado.
-- Sin embargo, NUNCA asumas que son técnicamente iguales sin advertirlo: explica con rigor en "diferencias_tecnicas" si la diferencia altera la seguridad, capacidad o norma técnica, y tenlo en cuenta al elegir "mejor_opcion".
+4. RESUMEN EJECUTIVO:
+   - Completa el resumen con observaciones de plazos de entrega, condiciones de pago (contado/crédito) y tu recomendación final.
 
-3. INTERPRETACIÓN INTELIGENTE
-- Comprende sinónimos, abreviaturas y distintas formas de descripción.
-- Considera marcas, modelos, formatos y unidades.
-- Detecta equivalencias únicamente cuando mantengan la misma función y especificación técnica esencial.
-
-4. OFERTAS POR PROVEEDOR
-Para cada producto_base debe existir una oferta de TODOS los proveedores:
-
-{', '.join(lista_nombres)}
-
-Si un proveedor no cotizó:
-
-descripcion_cotizada = "No cotizado"
-cantidad = 0
-precio_unitario = 0
-precio_total = 0
-
-5. CÁLCULOS
-- precio_total = cantidad × precio_unitario
-- Verifica todos los cálculos.
-- No inventes valores faltantes.
-- Utiliza únicamente los datos presentes en los presupuestos.
-
-6. DIFERENCIAS TÉCNICAS
-Registrar de forma detallada únicamente las diferencias relevantes:
-- marca
-- modelo
-- capacidad
-- amperaje
-- potencia
-- dimensiones
-- material
-- presentación
-- cantidad
-- norma técnica
-- características funcionales
-
-7. CONTROL DE CALIDAD
-Antes de responder valida que:
-
-- No existan productos duplicados.
-- No falte ningún proveedor.
-- Todos los cálculos sean correctos.
-- No haya equivalencias inseguras o técnicamente incorrectas.
-- Las diferencias técnicas estén claramente documentadas.
-
-8. PRINCIPIO GENERAL
-Prioriza siempre la precisión técnica sobre la agrupación.
-Ante cualquier duda técnica o de seguridad, NO asumir equivalencia.
-
-RESPUESTA
-Devuelve exclusivamente JSON válido.
-
-PRESUPUESTOS A COMPARAR:
-
-{texto_proveedores}
+DOCUMENTOS A ANALIZAR:
+{texto_documentos}
 """
-    print("Analizando y comparando presupuesstos con Gemini...")
-    interaction = client.interactions.create(
-        model="gemini-3.8-flash",
-        input=prompt,
-        response_format={
-            "type": "text",
-            "mime_type": "application/json",
-            "schema":
-            ResultadoComparacion.model_json_schema(),
-        },
-    )
 
-    return ResultadoComparacion.model_validate_json(interaction.output_text)
+    modelo_preferido = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+    modelos_a_probar = [modelo_preferido]
+    if modelo_preferido != "gemini-3.5-flash":
+        modelos_a_probar.append("gemini-3.5-flash")
+
+    ultimo_error = None
+    for modelo in modelos_a_probar:
+        try:
+            print(f"Analizando y comparando presupuestos con Gemini ({modelo})...")
+            interaction = client.interactions.create(
+                model=modelo,
+                input=prompt,
+                response_format={
+                    "type": "text",
+                    "mime_type": "application/json",
+                    "schema": ResultadoComparacion.model_json_schema(),
+                },
+                timeout=90,
+            )
+            return ResultadoComparacion.model_validate_json(interaction.output_text)
+        except Exception as e:
+            print(f"  [Aviso] No se pudo completar con {modelo}: {e}")
+            ultimo_error = e
+
+    raise RuntimeError(f"Error al procesar los presupuestos con Gemini: {ultimo_error}")
