@@ -32,8 +32,8 @@ def extraer_texto_imagen(ruta_archivo):
 
 def extraer_texto_archivo(ruta_archivo):
     """Detecta la extension y usa el extractor correspondiente"""
-    _, extension = os.path.slitext(
-        ruta_archivo)  # _ la usamos cuando la funcion debe devolver cosas pero esta en si no la necesitamos de primera
+    _, extension = os.path.splitext(  # _ la usamos cuando la funcion debe devolver cosas
+        ruta_archivo)                # pero esta en si no la necesitamos de primera
     extension = extension.lower()
 
     if extension == ".txt":
