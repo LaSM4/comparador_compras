@@ -1,6 +1,5 @@
 """Comparador de compras"""
 
-from typing import reveal_type
 import os  # Manejar rutas de archivos
 import pdfplumber  # Abrir archivos PDF y extraer su contenido
 from PIL import Image  # Abrir imagenes y aplicar OCR para convertir foto en texto
