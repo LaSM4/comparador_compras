@@ -1,4 +1,4 @@
-"""Módulo exportador de resultados a formato Excel (.xlsx) con diseño profesional."""
+"""Módulo exportador de resultados a formato Excel (.xlsx)."""
 
 import os
 import openpyxl
@@ -7,22 +7,36 @@ from openpyxl.utils import get_column_letter
 
 
 def exportar_a_excel(resultado, ruta_salida: str):
-    """Genera un archivo Excel (.xlsx) estilizado con la comparativa y el resumen ejecutivo."""
+    """Genera un archivo Excel (.xlsx) estilizado con la comparativa."""
     wb = openpyxl.Workbook()
 
     # Estilos compartidos
     color_primario = "1F4E78"    # Azul corporativo
     color_total = "D9E1F2"       # Azul claro para totales
-    color_resumen_hdr = "2F5597" # Azul secundario
+    color_resumen_hdr = "2F5597"  # Azul secundario
 
-    fuente_encabezado = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    fuente_encabezado = Font(
+        name="Calibri", size=11, bold=True, color="FFFFFF"
+    )
     fuente_negrita = Font(name="Calibri", size=11, bold=True)
     fuente_normal = Font(name="Calibri", size=10)
     fuente_titulo = Font(name="Calibri", size=14, bold=True, color="1F4E78")
 
-    fill_encabezado = PatternFill(start_color=color_primario, end_color=color_primario, fill_type="solid")
-    fill_total = PatternFill(start_color=color_total, end_color=color_total, fill_type="solid")
-    fill_resumen_hdr = PatternFill(start_color=color_resumen_hdr, end_color=color_resumen_hdr, fill_type="solid")
+    fill_encabezado = PatternFill(
+        start_color=color_primario,
+        end_color=color_primario,
+        fill_type="solid"
+    )
+    fill_total = PatternFill(
+        start_color=color_total,
+        end_color=color_total,
+        fill_type="solid"
+    )
+    fill_resumen_hdr = PatternFill(
+        start_color=color_resumen_hdr,
+        end_color=color_resumen_hdr,
+        fill_type="solid"
+    )
 
     borde_fino = Border(
         left=Side(style="thin", color="D3D3D3"),
@@ -43,8 +57,9 @@ def exportar_a_excel(resultado, ruta_salida: str):
 
     # Determinar lista ordenada de proveedores únicos
     proveedores_unicos = []
-    if hasattr(resultado, "resumen") and resultado.resumen.proveedores_detectados:
-        proveedores_unicos = list(resultado.resumen.proveedores_detectados)
+    resumen_obj = getattr(resultado, "resumen", None)
+    if resumen_obj and resumen_obj.proveedores_detectados:
+        proveedores_unicos = list(resumen_obj.proveedores_detectados)
     else:
         for item in resultado.items:
             for of in item.ofertas:
@@ -74,7 +89,9 @@ def exportar_a_excel(resultado, ruta_salida: str):
         celda = ws_comp.cell(row=1, column=col_idx)
         celda.font = fuente_encabezado
         celda.fill = fill_encabezado
-        celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        celda.alignment = Alignment(
+            horizontal="center", vertical="center", wrap_text=True
+        )
 
     # Cargar filas de datos
     filas_totales_cols = {}  # para acumular totales de cada proveedor
@@ -134,18 +151,29 @@ def exportar_a_excel(resultado, ruta_salida: str):
                 # Cantidades vs Precios
                 encabezado_col = ws_comp.cell(row=1, column=col).value or ""
                 if "Cant." in encabezado_col:
-                    celda.alignment = Alignment(horizontal="center", vertical="center")
+                    celda.alignment = Alignment(
+                        horizontal="center", vertical="center"
+                    )
                     celda.number_format = "#,##0.##"
                 else:
-                    celda.alignment = Alignment(horizontal="right", vertical="center")
+                    celda.alignment = Alignment(
+                        horizontal="right", vertical="center"
+                    )
                     celda.number_format = formato_miles
             elif isinstance(celda.value, str):
+                hdr_val = ws_comp.cell(row=1, column=col).value or ""
                 if celda.value in ["-", "No cotizado"]:
-                    celda.alignment = Alignment(horizontal="center", vertical="center")
-                elif "Diferencias" in (ws_comp.cell(row=1, column=col).value or ""):
-                    celda.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+                    celda.alignment = Alignment(
+                        horizontal="center", vertical="center"
+                    )
+                elif "Diferencias" in hdr_val:
+                    celda.alignment = Alignment(
+                        horizontal="left", vertical="top", wrap_text=True
+                    )
                 else:
-                    celda.alignment = Alignment(horizontal="left", vertical="center")
+                    celda.alignment = Alignment(
+                        horizontal="left", vertical="center"
+                    )
 
     # ----------------------------------------------------
     # HOJA 2: Resumen Ejecutivo
@@ -156,12 +184,27 @@ def exportar_a_excel(resultado, ruta_salida: str):
     ws_resumen["B2"].font = fuente_titulo
 
     resumen = getattr(resultado, "resumen", None)
+    moneda_nom = getattr(resumen, "moneda_principal", "GS")
 
     filas_resumen = [
-        ("Moneda Principal:", getattr(resumen, "moneda_principal", "GS")),
+        ("Moneda Principal:", moneda_nom),
         ("Proveedores Evaluados:", ", ".join(proveedores_unicos)),
-        ("Observaciones Generales:", getattr(resumen, "observaciones_generales", "Sin observaciones adicionales.")),
-        ("Recomendación de Compra:", getattr(resumen, "conclusion_recomendada", "Ver detalle en hoja Comparativa.")),
+        (
+            "Observaciones Generales:",
+            getattr(
+                resumen,
+                "observaciones_generales",
+                "Sin observaciones adicionales."
+            )
+        ),
+        (
+            "Recomendación de Compra:",
+            getattr(
+                resumen,
+                "conclusion_recomendada",
+                "Ver detalle en hoja Comparativa."
+            )
+        ),
     ]
 
     r_idx = 4
@@ -179,7 +222,9 @@ def exportar_a_excel(resultado, ruta_salida: str):
     hdr_prov.font = fuente_encabezado
     hdr_prov.fill = fill_resumen_hdr
 
-    hdr_tot = ws_resumen.cell(row=r_idx, column=3, value=f"Total Presupuestado ({getattr(resumen, 'moneda_principal', 'GS')})")
+    hdr_tot = ws_resumen.cell(
+        row=r_idx, column=3, value=f"Total Presupuestado ({moneda_nom})"
+    )
     hdr_tot.font = fuente_encabezado
     hdr_tot.fill = fill_resumen_hdr
 
@@ -189,7 +234,9 @@ def exportar_a_excel(resultado, ruta_salida: str):
         c_p.font = fuente_normal
         c_p.border = borde_fino
 
-        c_t = ws_resumen.cell(row=r_idx, column=3, value=filas_totales_cols[prov])
+        c_t = ws_resumen.cell(
+            row=r_idx, column=3, value=filas_totales_cols[prov]
+        )
         c_t.font = fuente_negrita
         c_t.alignment = Alignment(horizontal="right")
         c_t.number_format = formato_miles
@@ -204,11 +251,13 @@ def exportar_a_excel(resultado, ruta_salida: str):
             for celda in col:
                 val_str = str(celda.value or "")
                 lineas = val_str.split("\n")
-                longitud_max_linea = max(len(l) for l in lineas) if lineas else 0
-                if longitud_max_linea > max_len:
-                    max_len = longitud_max_linea
+                long_linea = max(len(l) for l in lineas) if lineas else 0
+                if long_linea > max_len:
+                    max_len = long_linea
             # Establecer un ancho razonable
-            ws.column_dimensions[col_letter].width = max(min(max_len + 4, 45), 12)
+            ws.column_dimensions[col_letter].width = max(
+                min(max_len + 4, 45), 12
+            )
 
     # Guardar archivo
     os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)

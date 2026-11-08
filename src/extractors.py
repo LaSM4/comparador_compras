@@ -2,13 +2,13 @@
 
 import os
 import shutil
-import pdfplumber
-from PIL import Image
-import pytesseract
+import pdfplumber  # pyrefly: ignore[missing-import]
+from PIL import Image  # pyrefly: ignore[missing-import]
+import pytesseract  # pyrefly: ignore[missing-import]
 
 
 def _configurar_tesseract():
-    """Detecta y configura la ruta del ejecutable de Tesseract si no está en PATH."""
+    """Detecta y configura la ruta de Tesseract si no está en PATH."""
     cmd = pytesseract.pytesseract.tesseract_cmd
     if not shutil.which(cmd):
         posibles_rutas = [
@@ -42,7 +42,9 @@ def extraer_texto_txt(ruta_archivo: str) -> str:
         with open(ruta_archivo, "r", encoding="utf-8") as f:
             return f.read().strip()
     except UnicodeDecodeError:
-        with open(ruta_archivo, "r", encoding="latin-1", errors="replace") as f:
+        with open(
+            ruta_archivo, "r", encoding="latin-1", errors="replace"
+        ) as f:
             return f.read().strip()
 
 
@@ -55,12 +57,14 @@ def extraer_texto_imagen(ruta_archivo: str) -> str:
             texto = pytesseract.image_to_string(imagen, lang=idioma)
             return texto.strip()
     except Exception as e:
-        print(f"  [Aviso OCR] No se pudo procesar la imagen {ruta_archivo}: {e}")
+        print(
+            f"  [Aviso OCR] No se procesó la imagen {ruta_archivo}: {e}"
+        )
         return ""
 
 
 def extraer_texto_pdf(ruta_archivo: str) -> str:
-    """Lee un archivo .pdf. Si una página es escaneada (sin texto directo), aplica OCR."""
+    """Lee un archivo .pdf con fallback a OCR para páginas escaneadas."""
     texto_total = []
     _configurar_tesseract()
     idioma = _obtener_idioma_ocr()
@@ -73,20 +77,25 @@ def extraer_texto_pdf(ruta_archivo: str) -> str:
                 if texto_pagina and len(texto_pagina.strip()) > 30:
                     texto_total.append(texto_pagina.strip())
                 else:
-                    # PDF escaneado o imagen embebida: aplicar OCR a la página renderizada
+                    # PDF escaneado: aplicar OCR a la página renderizada
                     try:
                         img = pagina.to_image(resolution=200).original
-                        texto_ocr = pytesseract.image_to_string(img, lang=idioma)
+                        texto_ocr = pytesseract.image_to_string(
+                            img, lang=idioma
+                        )
                         if texto_ocr.strip():
                             texto_total.append(texto_ocr.strip())
                     except Exception as e_ocr:
-                        print(f"  [Aviso PDF OCR] Error en página {num_pag} de {ruta_archivo}: {e_ocr}")
+                        print(
+                            f"  [Aviso PDF OCR] Pág {num_pag} "
+                            f"en {ruta_archivo}: {e_ocr}"
+                        )
                         if texto_pagina:
                             texto_total.append(texto_pagina.strip())
 
         return "\n\n".join(texto_total).strip()
     except Exception as e:
-        print(f"  [Error PDF] No se pudo leer el archivo {ruta_archivo}: {e}")
+        print(f"  [Error PDF] No se pudo leer {ruta_archivo}: {e}")
         return ""
 
 
@@ -106,10 +115,12 @@ def extraer_texto_archivo(ruta_archivo: str) -> str:
 
 
 def cargar_presupuestos(carpeta_input: str) -> dict[str, str]:
-    """Lee todos los presupuestos soportados de una carpeta y devuelve un diccionario."""
+    """Lee todos los presupuestos de una carpeta y retorna un dict."""
     if not os.path.exists(carpeta_input):
         os.makedirs(carpeta_input, exist_ok=True)
-        print(f"Carpeta '{carpeta_input}' creada automáticamente. Agrega presupuestos allí.")
+        print(
+            f"Carpeta '{carpeta_input}' creada. Agrega presupuestos allí."
+        )
         return {}
 
     presupuestos = {}
@@ -126,7 +137,9 @@ def cargar_presupuestos(carpeta_input: str) -> dict[str, str]:
 
         _, extension = os.path.splitext(archivo)
         if extension.lower() not in formatos_soportados:
-            print(f"  [Omitido] '{archivo}': Formato no soportado ({extension}).")
+            print(
+                f"  [Omitido] '{archivo}': Formato ({extension}) no soportado."
+            )
             continue
 
         nombre_base, _ = os.path.splitext(archivo)
@@ -134,7 +147,9 @@ def cargar_presupuestos(carpeta_input: str) -> dict[str, str]:
         texto = extraer_texto_archivo(ruta_completa)
 
         if not texto:
-            print(f"  [Advertencia] No se pudo extraer texto de '{archivo}' (archivo vacío o ilegible).")
+            print(
+                f"  [Advertencia] No se extrajo texto de '{archivo}' (vacío)."
+            )
             continue
 
         # Se guarda con el identificador del archivo para referencia

@@ -10,23 +10,23 @@ from src.exporter import exportar_a_excel
 
 
 def main():
-    """Función principal para coordinar la extracción, análisis y exportación."""
+    """Función para coordinar extracción, análisis y exportación."""
     base_dir = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser(
-        description="Comparador inteligente de compras y presupuestos con IA (Gemini)."
+        description="Comparador inteligente de presupuestos con IA (Gemini)."
     )
     parser.add_argument(
         "--input",
         "-i",
         default=str(base_dir / "data" / "input"),
-        help="Ruta de la carpeta con los presupuestos a comparar (default: data/input)",
+        help="Ruta de la carpeta con presupuestos (default: data/input)",
     )
     parser.add_argument(
         "--output",
         "-o",
         default=str(base_dir / "data" / "output" / "cuadro_comparativo.xlsx"),
-        help="Ruta del archivo Excel de salida (default: data/output/cuadro_comparativo.xlsx)",
+        help="Ruta del Excel de salida (default: data/output/cuadro.xlsx)",
     )
     parser.add_argument(
         "--model",
@@ -53,9 +53,13 @@ def main():
 
         if len(presupuestos) < 2:
             print(
-                f"\nSe encontraron {len(presupuestos)} presupuestos válidos en '{carpeta_entrada}'."
+                f"\nSe encontraron {len(presupuestos)} presupuestos válidos "
+                f"en '{carpeta_entrada}'."
             )
-            print("Por favor, agrega al menos 2 presupuestos (.pdf, .png, .jpg o .txt) para poder comparar.")
+            print(
+                "Por favor, agrega al menos 2 presupuestos (.pdf, .png, "
+                ".jpg o .txt) para poder comparar."
+            )
             return
 
         resultado = comparar_presupuestos(presupuestos)
@@ -65,7 +69,8 @@ def main():
     except PermissionError:
         print(
             f"\n[Error de Permiso] No se pudo escribir en '{archivo_salida}'. "
-            "Asegúrate de que el archivo no esté abierto en Microsoft Excel y vuelve a intentarlo."
+            "Asegúrate de que el archivo no esté abierto en Microsoft Excel "
+            "y vuelve a intentarlo."
         )
         sys.exit(1)
     except KeyboardInterrupt:
